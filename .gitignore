@@ -1,0 +1,7 @@
+node_modules/
+notes/original-site.html
+notes/fonts-google.css
+artifacts/
+_site/
+*.tar.gz
+*.tar
