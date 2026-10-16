@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat('ru-KZ', { maximumFractionDigits: 0 });
-const decimal = new Intl.NumberFormat('ru-KZ', { maximumFractionDigits: 1 });
+const decimal = new Intl.NumberFormat('ru-KZ', { maximumFractionDigits: 2 });
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const menuButton = $('.menu-toggle');
 const mobileNav = $('#mobile-nav');
@@ -32,9 +32,15 @@ const heightInput = $('#height');
 const lengthInput = $('#length');
 const form = $('#estimate-form');
 let mode = 'tower';
-const savedHeight = { scaffold: 4, tower: 2.4 };
+const TOWER_BASE_CM = 29;
+const TOWER_GUARD_CM = 100;
+const TOWER_SECTION_CM = 120;
+const TOWER_MAX_SECTIONS = 17;
+const towerHeight = sections => (TOWER_BASE_CM + sections*TOWER_SECTION_CM + TOWER_GUARD_CM)/100;
+const platformHeight = total => (Math.round(total*100)-TOWER_GUARD_CM)/100;
+const savedHeight = { scaffold: 4, tower: towerHeight(1) };
 let shownSections = 0;
-let lastBayCount = 0;
+let shownBays = 0;
 let modelMode = '';
 let modelFrame = 0;
 let modelGeneration = 0;
@@ -42,6 +48,8 @@ const model = $('#blueprint');
 const BASE_Y = 258;
 const FLOOR = 39;
 const MAX_SECTIONS = 30;
+const BAY_WIDTH = 92;
+const MAX_BAYS = 30;
 
 function rangeFill(input) {
   const percent = (Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min)) * 100;
@@ -68,15 +76,48 @@ function deck(width, depth, z) {
   s += `<path d="M${p(-width/2,depth/2,z)}L${p(width/2,depth/2,z)}L${p(width/2,depth/2,z-3)}L${p(-width/2,depth/2,z-3)}Z" fill="#93744f"/>`;
   return s;
 }
+function makeScaffoldModel() {
+  const back=-29, front=29, bottom=10, top=bottom+FLOOR;
+  let bay='';
+  for (const y of [back,front]) {
+    bay+=beam([0,y,bottom],[0,y,top],'#6794b5');
+    bay+=beam([BAY_WIDTH,y,bottom],[BAY_WIDTH,y,top],'#6794b5');
+    bay+=beam([0,y,top],[BAY_WIDTH,y,top]);
+    bay+=beam([0,y,bottom],[BAY_WIDTH,y,top],y===back?'#507b99':'#9fb7c8',2);
+    bay+=beam([BAY_WIDTH,y,bottom],[0,y,top],y===back?'#507b99':'#9fb7c8',2);
+    if(y===back) bay+=`<g transform="translate(${BAY_WIDTH*.425},${BAY_WIDTH*.145})">${deck(BAY_WIDTH,58,top-2)}</g>`;
+  }
+  bay+=beam([BAY_WIDTH,back,top],[BAY_WIDTH,front,top]);
+  bay+=beam([BAY_WIDTH,back,bottom],[BAY_WIDTH,front,top],'#6fa3c3',2);
+  bay+=beam([BAY_WIDTH,front,bottom],[BAY_WIDTH,back,top],'#6fa3c3',2);
+  bay+=joint(0,front,top)+joint(BAY_WIDTH,front,top);
+  let rail='',feet='';
+  for (const x of [0,BAY_WIDTH]) for (const y of [back,front]) {
+    rail+=beam([x,y,10],[x,y,31],'#f17041',3);
+    feet+=`<path d="M${p(x-7,y-5,0)}L${p(x+7,y-5,0)}L${p(x+7,y+5,0)}L${p(x-7,y+5,0)}Z" fill="#b7cbd7"/>`;
+  }
+  for(const z of [21,31]) for(const y of [back,front]) rail+=beam([0,y,z],[BAY_WIDTH,y,z],'#f17041',2.8);
+  let svg=`<defs><g id="scaffold-bay">${bay}</g><g id="scaffold-rail">${rail}</g><g id="scaffold-feet">${feet}</g></defs><g class="model-ground">`;
+  for(let i=-240;i<=240;i+=40) svg+=`<path d="M${p(i,-160,0)}L${p(i,160,0)}M${p(-240,i,0)}L${p(240,i,0)}"/>`;
+  svg+='</g><g class="model-viewport"><g class="model-center">';
+  // Reuse one SVG bay at every position; moving either slider keeps existing nodes.
+  const row=(template,level=0)=>Array.from({length:MAX_BAYS},(_,index)=>`<use class="assembly-bay absent-bay" data-bay="${index}" href="#${template}" x="${index*BAY_WIDTH*.85}" y="${index*BAY_WIDTH*.29-level*FLOOR}"/>`).join('');
+  svg+=`<g class="model-base">${row('scaffold-feet')}</g>`;
+  for(let level=0;level<MAX_SECTIONS;level++) svg+=`<g class="assembly-layer absent" data-level="${level}">${row('scaffold-bay',level)}</g>`;
+  svg+=`<g class="model-roof">${row('scaffold-rail')}</g></g></g>`;
+  return svg;
+}
 function makeModel() {
   cancelAnimationFrame(modelFrame);
   const generation = ++modelGeneration;
   const isTower = mode === 'tower';
-  const bays = isTower ? 1 : Math.min(4, Math.max(1, Math.ceil(Number(lengthInput.value)/12)));
+  const bays = 1;
   const width = isTower ? 88 : bays * 92;
   const depth = isTower ? 76 : 58;
+  const baseHeight=isTower?FLOOR*TOWER_BASE_CM/TOWER_SECTION_CM:10;
+  const guardHeight=isTower?FLOOR*TOWER_GUARD_CM/TOWER_SECTION_CM:21;
   const left = -width/2, right = width/2, back = -depth/2, front = depth/2;
-  lastBayCount = bays;
+  shownBays = 0;
   modelMode = mode;
   shownSections = 0;
   let svg = '<g class="model-ground">';
@@ -88,8 +129,8 @@ function makeModel() {
   for (const x of [left,right]) for (const y of [back,front]) {
     if (isTower) {
       const [cx,cy] = point(x,y,0);
-      svg += `<ellipse cx="${cx}" cy="${cy+5}" rx="5" ry="7" fill="#071c29" stroke="#99afba" stroke-width="1.4"/>`;
-      svg += beam([x,y,0],[x,y,11],'#b7cbd7',3);
+      svg += `<ellipse cx="${cx}" cy="${cy-baseHeight/2}" rx="4" ry="${baseHeight/2}" fill="#071c29" stroke="#99afba" stroke-width="1.4"/>`;
+      svg += beam([x,y,baseHeight/2],[x,y,baseHeight],'#b7cbd7',3);
     } else svg += `<path d="M${p(x-7,y-5,0)}L${p(x+7,y-5,0)}L${p(x+7,y+5,0)}L${p(x-7,y+5,0)}Z" fill="#b7cbd7"/>`;
   }
   if (isTower) {
@@ -99,7 +140,7 @@ function makeModel() {
     }
   }
   for(let level=0; level<MAX_SECTIONS; level++) {
-    const bottom=level*FLOOR+10, top=bottom+FLOOR;
+    const bottom=level*FLOOR+baseHeight, top=bottom+FLOOR;
     const upright=isTower?'#e1b54d':'#6794b5';
     svg += `<g class="assembly-layer absent" data-level="${level}">`;
     for(let bay=0;bay<bays;bay++) {
@@ -113,7 +154,7 @@ function makeModel() {
     svg += beam([right,back,top],[right,front,top]);
     svg += beam([right,back,bottom],[right,front,top],'#6fa3c3',2);
     svg += beam([right,front,bottom],[right,back,top],'#6fa3c3',2);
-    svg += deck(width,depth,top-2);
+    svg += deck(width,depth,isTower?top:top-2);
     for(let bay=0;bay<bays;bay++) {
       const x1=left+bay*width/bays, x2=left+(bay+1)*width/bays;
       svg += beam([x1,front,bottom],[x1,front,top],upright);
@@ -130,30 +171,45 @@ function makeModel() {
     svg += '</g>';
   }
   svg += '<g class="model-roof">';
-  for (const x of [left,right]) for (const y of [back,front]) svg += beam([x,y,10],[x,y,31],'#f17041',3);
-  for(const z of [21,31]) {
+  for (const x of [left,right]) for (const y of [back,front]) svg += beam([x,y,baseHeight],[x,y,baseHeight+guardHeight],'#f17041',3);
+  for(const z of [baseHeight+guardHeight/2,baseHeight+guardHeight]) {
     svg += beam([left,back,z],[right,back,z],'#f17041',2.8);
     svg += beam([right,back,z],[right,front,z],'#f17041',2.8);
     svg += beam([left,front,z],[right,front,z],'#f17041',2.8);
     svg += beam([left,back,z],[left,front,z],'#f17041',2.8);
   }
   svg += '</g></g>';
-  model.innerHTML=svg;
+  model.innerHTML=isTower?svg:makeScaffoldModel();
   modelFrame=requestAnimationFrame(()=> {
     if(generation!==modelGeneration) return;
     modelFrame=requestAnimationFrame(()=>animateModel());
   });
 }
 function sectionCount() {
-  return mode==='tower' ? Math.max(1,Math.round((Number(heightInput.value)-1.2)/1.2)) : Math.round(Number(heightInput.value)/2);
+  return mode==='tower' ? Math.max(1,Math.round((Math.round(Number(heightInput.value)*100)-TOWER_BASE_CM-TOWER_GUARD_CM)/TOWER_SECTION_CM)) : Math.round(Number(heightInput.value)/2);
 }
 function animateModel() {
   const count=sectionCount();
   const old=shownSections;
-  const scale=Math.min(1,222/(count*FLOOR+34));
+  const bays=mode==='tower'?1:Number(lengthInput.value)/3;
+  const width=bays*BAY_WIDTH;
+  // Fit the whole facade at every length, including 90 m at the maximum height.
+  const scale=mode==='tower'?Math.min(1,222/(count*FLOOR+(TOWER_BASE_CM+TOWER_GUARD_CM)*FLOOR/TOWER_SECTION_CM)):Math.min(1,420/((width+58)*.85+14),250/(count*FLOOR+41+(width+58)*.29));
   const viewport=model.querySelector('.model-viewport');
   if(!viewport) return;
-  viewport.style.transform=`translate(${240*(1-scale)}px,${BASE_Y*(1-scale)}px) scale(${scale})`;
+  const base=mode==='tower'?BASE_Y:284-(width+58)*.145*scale;
+  const offsetX=mode==='tower'?0:width*.425*scale;
+  const offsetY=mode==='tower'?0:width*.145*scale;
+  viewport.style.transform=`translate(${240*(1-scale)-offsetX}px,${base-BASE_Y*scale-offsetY}px) scale(${scale})`;
+  if(mode==='scaffold') {
+    model.querySelectorAll('.assembly-bay').forEach(bay=>{
+      const index=Number(bay.dataset.bay);
+      const visible=index<bays;
+      if((index<shownBays)!==visible) bay.classList.toggle('absent-bay',!visible);
+    });
+  }
+  shownBays=bays;
+  model.dataset.bays=String(bays);
   model.querySelector('.model-roof').style.transform=`translateY(${-count*FLOOR}px)`;
   model.querySelectorAll('.assembly-layer').forEach((layer,index)=> {
     const visible=index<count;
@@ -163,7 +219,7 @@ function animateModel() {
     layer.classList.toggle('absent',!visible);
   });
   shownSections=count;
-  $('#model-sections').textContent=pluralSections(count);
+  $('#model-sections').textContent=mode==='tower'?pluralSections(count):`${decimal.format(Number(lengthInput.value))} × ${decimal.format(Number(heightInput.value))} м`;
   model.dataset.sections=String(count);
 }
 function update() {
@@ -171,8 +227,10 @@ function update() {
   const height=Number(heightInput.value);
   savedHeight[mode]=height;
   $('#height-output').textContent=decimal.format(height);
-  heightInput.setAttribute('aria-valuetext',`${decimal.format(height)} метра`);
+  heightInput.setAttribute('aria-valuetext',mode==='tower'?`Общая высота ${decimal.format(height)} метра, настил ${decimal.format(platformHeight(height))} метра`:`${decimal.format(height)} метра`);
+  if(mode==='tower') $('#platform-output').textContent=decimal.format(platformHeight(height));
   $('#length-output').textContent=decimal.format(length);
+  lengthInput.setAttribute('aria-valuetext',`${decimal.format(length)} метров, ${pluralSections(length/3)} вдоль фасада`);
   rangeFill(heightInput);
   rangeFill(lengthInput);
   $('#height-down').disabled=height<=Number(heightInput.min);
@@ -187,8 +245,7 @@ function update() {
     $('#estimate-price').textContent='от 99 900 ₸';
     $('#estimate-note').textContent=`Цена базового варианта. Комплект на ${decimal.format(height)} м и доставку отдельно рассчитает менеджер.`;
   }
-  const bays=mode==='tower'?1:Math.min(4,Math.max(1,Math.ceil(length/12)));
-  if(modelMode!==mode||lastBayCount!==bays) makeModel();
+  if(modelMode!==mode) makeModel();
   else animateModel();
   $('#form-status').hidden=true;
 }
@@ -196,20 +253,22 @@ function setMode(value) {
   mode=value;
   const isTower=mode==='tower';
   document.querySelectorAll('[name=equipment]').forEach(input=>input.checked=input.value===mode);
-  heightInput.min=isTower?'2.4':'2';
-  heightInput.max=isTower?'21.6':'60';
-  heightInput.step=isTower?'1.2':'2';
+  heightInput.min=isTower?String(towerHeight(1)):'2';
+  heightInput.max=isTower?String(towerHeight(TOWER_MAX_SECTIONS)):'60';
+  heightInput.step=isTower?String(TOWER_SECTION_CM/100):'2';
   heightInput.value=String(savedHeight[mode]);
-  $('#height-min').textContent=isTower?'2,4 м':'2 м';
-  $('#height-max').textContent=isTower?'21,6 м':'60 м';
-  $('#height-label').textContent=isTower?'Высота конструкции':'Высота лесов';
+  $('#height-min').textContent=isTower?`${decimal.format(towerHeight(1))} м`:'2 м';
+  $('#height-max').textContent=isTower?`${decimal.format(towerHeight(TOWER_MAX_SECTIONS))} м`:'60 м';
+  $('#height-label').textContent=isTower?'Общая высота вышки':'Высота лесов';
+  heightInput.setAttribute('aria-describedby',isTower?'assembly-hint tower-dimensions':'assembly-hint');
+  $('#tower-dimensions').hidden=!isTower;
   $('#length-field').hidden=isTower;
   lengthInput.disabled=isTower;
   $('#model-name').textContent=isTower?'Вышка-тура':'Рамные леса';
   $('#selection-caption').textContent='Ваше оборудование';
   $('#selection-model').textContent=isTower?'ВСП-250 «Евро»':'ЛРСП-40 / ЛРСП-60';
   $('#selection-description').textContent=isTower?'Для монтажа, обслуживания и локальной отделки.':'Для кладки, утепления и отделки фасадов.';
-  $('#selection-feature').textContent=isTower?'Шаг секции — 1,2 м':'Высота яруса — 2 м';
+  $('#selection-feature').textContent=isTower?'Секция — 1,2 м · База — 0,29 м · Ограждение — 1 м':'Высота яруса — 2 м';
   update();
 }
 document.querySelectorAll('[name=equipment]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
@@ -218,12 +277,36 @@ $('#height-up').addEventListener('click',()=>{heightInput.stepUp();update();});
 heightInput.addEventListener('input',update);
 lengthInput.addEventListener('input',update);
 document.querySelectorAll('[data-product]').forEach(link=>link.addEventListener('click',()=>setMode(link.dataset.product)));
+const officeInput=$('#office');
+const recipientInput=$('#recipient');
+const officeNumbers={
+  'Астана':[{number:'77017050000',label:'+7 701 705 00 00'}],
+  'Алматы':[{number:'77781735353',label:'+7 778 173 53 53'},{number:'77770582285',label:'+7 777 058 22 85'}]
+};
+const savedRecipient={};
+let officeChosen=false;
+function updateRecipient() {
+  const office=officeInput.value;
+  recipientInput.replaceChildren(...officeNumbers[office].map(({number,label})=>new Option(label,number)));
+  recipientInput.value=savedRecipient[office]||officeNumbers[office][0].number;
+  $('#form-status').hidden=true;
+}
+officeInput.addEventListener('change',()=>{officeChosen=true;updateRecipient();});
+recipientInput.addEventListener('change',()=>{
+  officeChosen=true;
+  savedRecipient[officeInput.value]=recipientInput.value;
+  $('#form-status').hidden=true;
+});
 $('#city').addEventListener('change',()=> {
   const other=$('#city').value==='other';
   $('#other-city-field').hidden=!other;
   $('#other-city').disabled=!other;
   $('#other-city').required=other;
   if(other) $('#other-city').focus();
+  if(!officeChosen&&officeNumbers[$('#city').value]) {
+    officeInput.value=$('#city').value;
+    updateRecipient();
+  }
   $('#form-status').hidden=true;
 });
 $('#other-city').addEventListener('input',()=>$('#other-city').setCustomValidity(''));
@@ -238,11 +321,13 @@ form.addEventListener('submit',(event)=> {
   const height=decimal.format(Number(heightInput.value));
   const lines=['Здравствуйте! Хочу получить расчёт оборудования.'];
   if(mode==='scaffold') lines.push('Оборудование: рамные строительные леса.',`Длина фасада: ${lengthInput.value} м.`,`Высота конструкции: ${height} м.`);
-  else lines.push('Оборудование: вышка-тура ВСП-250 «Евро».',`Желаемая высота конструкции по схеме: ${height} м.`);
-  lines.push(`Город доставки: ${city}.`,'Помогите уточнить рабочую высоту, комплектацию, актуальную стоимость и доставку.');
-  const url=`https://wa.me/77017050000?text=${encodeURIComponent(lines.join('\n'))}`;
+  else lines.push('Оборудование: вышка-тура ВСП-250 «Евро».',`Общая высота по схеме: ${height} м.`,`Высота настила: ${decimal.format(platformHeight(Number(heightInput.value)))} м.`,`Секции по 1,2 м: ${sectionCount()}.`,'Колёсная база: 0,29 м. Верхнее ограждение: 1 м.');
+  lines.push(`Город доставки: ${city}.`,`Офис: ${officeInput.value}.`,'Помогите уточнить рабочую высоту, комплектацию, актуальную стоимость и доставку.');
+  const recipient=officeNumbers[officeInput.value].find(({number})=>number===recipientInput.value);
+  if(!recipient) return;
+  const url=`https://wa.me/${recipient.number}?text=${encodeURIComponent(lines.join('\n'))}`;
   const status=$('#form-status');
-  status.replaceChildren(document.createTextNode('Запрос подготовлен. '));
+  status.replaceChildren(document.createTextNode(`Запрос для офиса «${officeInput.value}» подготовлен. `));
   const link=document.createElement('a');
   link.href=url; link.target='_blank'; link.rel='noopener'; link.textContent='Открыть его в WhatsApp';
   status.append(link); status.hidden=false;

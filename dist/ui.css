@@ -47,7 +47,7 @@ fieldset{min-width:0;margin:0;padding:0;border:0}
 .brand-type small{display:block;margin-top:8px;font:700 8px/1.3 Manrope,sans-serif;letter-spacing:1.4px}
 .desktop-nav{display:flex;align-items:center;gap:20px;margin-left:auto}
 .desktop-nav a{padding:12px 0;font-size:14px;font-weight:600;white-space:nowrap}
-.header-contact{flex-shrink:0}.header-phone{display:block;font-size:15px;font-weight:700}
+.header-contact{display:flex;gap:20px;flex-shrink:0}.header-phone{display:block;white-space:nowrap;font-size:14px;font-weight:700}
 .header-contact span{display:block;font-size:12px;color:var(--muted)}.header-cta{flex-shrink:0}
 .menu-toggle{display:none;width:48px;height:48px;position:relative;background:transparent}
 .menu-toggle span{position:absolute;left:11px;right:11px;top:18px;height:2px;background:var(--navy);transition:transform .2s var(--ease-out)}
@@ -118,6 +118,8 @@ details[open]>summary>span{transform:rotate(45deg)}.product-details>div{padding-
 .model-viewport{transition:transform .5s var(--ease-out)}.model-roof{transition:transform .5s var(--ease-out)}
 .assembly-layer{opacity:1;transform:translateY(0);transform-box:fill-box;transition:transform .55s var(--ease-out),opacity .25s ease}
 .assembly-layer.absent{opacity:0;transform:translateY(-50px);pointer-events:none}
+.assembly-bay{opacity:1;visibility:visible;transform:translate(0,0);transition:transform .25s var(--ease-out),opacity .18s ease,visibility 0s}
+.assembly-bay.absent-bay{opacity:0;visibility:hidden;transform:translate(18px,6px);transition-delay:0s,0s,.25s}
 .range-label{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px;font-size:15px}
 .range-label>span{white-space:nowrap;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 .height-control{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:16px;align-items:center}
@@ -132,6 +134,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;background:var(--oran
 .range-limits{display:flex;justify-content:space-between;font-size:12px;color:#c2d5e1}
 .assembly-slider>.range-limits{margin-inline:60px}.length-field{margin-top:24px;padding-top:24px;border-top:1px solid #47697e}
 .assembly-hint{margin-top:24px;color:#c2d5e1;font-size:12px;line-height:1.7}
+.tower-dimensions{margin-top:24px;padding-top:20px;border-top:1px solid #47697e}
+.tower-dimensions>div{display:flex;justify-content:space-between;gap:16px;font-size:15px}.tower-dimensions strong{white-space:nowrap;font-size:20px}
+.tower-dimensions p{margin-top:10px;color:#c2d5e1;font-size:13px;line-height:1.7}
 .calculator-panel{min-width:0;background:white;color:var(--ink);padding:32px;border-radius:var(--radius)}
 .selection-detail{padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--line)}
 .selection-detail>span{color:var(--muted);font-size:14px;display:block;margin-bottom:8px}
@@ -140,6 +145,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;background:var(--oran
 .city-field label,.other-city label{display:block;font-weight:600;font-size:15px;margin-bottom:8px}
 .city-field select,.other-city input{width:100%;min-height:52px;border:1px solid #becdd6;border-radius:7px;color:var(--ink);background:#f7f9fa;padding:12px 16px;font-size:16px}
 .other-city{margin-top:16px}.other-city input::placeholder{color:#61727d;opacity:1}
+.recipient-fields{min-width:0;margin:24px 0 0;padding:20px 0 0;border:0;border-top:1px solid var(--line)}
+.recipient-fields legend{padding:0 8px 0 0;font-size:15px;font-weight:700}
+.recipient-fields .city-field+.city-field{margin-top:16px}
 .estimate-summary{padding-top:24px;margin-top:24px;border-top:1px solid var(--line)}
 .estimate-summary>span{display:block;font-size:14px;color:var(--muted)}
 .estimate-summary strong{display:block;margin-top:8px;font-size:36px;line-height:1.3;font-weight:700;letter-spacing:-.03em}
@@ -264,5 +272,5 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;background:var(--oran
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important;transition-delay:0ms!important}
-  .hero h1{animation:none}.assembly-layer.absent{transform:none}
+  .hero h1{animation:none}.assembly-layer.absent,.assembly-bay.absent-bay{transform:none}
 }
