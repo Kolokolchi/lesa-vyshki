@@ -27,11 +27,25 @@ window.matchMedia('(min-width: 901px)').addEventListener('change', (event) => {
   if (event.matches) closeMenu();
 });
 $('#year').textContent = String(new Date().getFullYear());
+document.querySelectorAll('a[href="#top"]').forEach(link=>link.addEventListener('click',event=>{
+  if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey) return;
+  event.preventDefault();
+  history.replaceState(history.state,'','#top');
+  $('.header .brand').focus({preventScroll:true});
+  window.scrollTo({top:0,behavior:reducedMotion.matches?'instant':'smooth'});
+}));
 
 const heightInput = $('#height');
 const lengthInput = $('#length');
 const form = $('#estimate-form');
 let mode = 'tower';
+const towerPlatforms={
+  '0.8x1.7':{width:.8,length:1.7,label:'0,8 × 1,7 м'},
+  '1.2x2':{width:1.2,length:2,label:'1,2 × 2 м'},
+  '2x2':{width:2,length:2,label:'2 × 2 м'}
+};
+let towerPlatform='1.2x2';
+let modelPlatform='';
 const TOWER_BASE_CM = 29;
 const TOWER_GUARD_CM = 100;
 const TOWER_SECTION_CM = 120;
@@ -112,13 +126,16 @@ function makeModel() {
   const generation = ++modelGeneration;
   const isTower = mode === 'tower';
   const bays = 1;
-  const width = isTower ? 88 : bays * 92;
-  const depth = isTower ? 76 : 58;
+  const platform=towerPlatforms[towerPlatform];
+  const metre=FLOOR*100/TOWER_SECTION_CM;
+  const width = isTower ? platform.length*metre : bays * 92;
+  const depth = isTower ? platform.width*metre : 58;
   const baseHeight=isTower?FLOOR*TOWER_BASE_CM/TOWER_SECTION_CM:10;
   const guardHeight=isTower?FLOOR*TOWER_GUARD_CM/TOWER_SECTION_CM:21;
   const left = -width/2, right = width/2, back = -depth/2, front = depth/2;
   shownBays = 0;
   modelMode = mode;
+  modelPlatform = towerPlatform;
   shownSections = 0;
   let svg = '<g class="model-ground">';
   for (let i=-240; i<=240; i+=40) {
@@ -193,11 +210,14 @@ function animateModel() {
   const old=shownSections;
   const bays=mode==='tower'?1:Number(lengthInput.value)/3;
   const width=bays*BAY_WIDTH;
+  const platform=towerPlatforms[towerPlatform];
+  const towerDepth=(platform.length+platform.width)*FLOOR*100/TOWER_SECTION_CM*.145;
+  const towerTop=count*FLOOR+(TOWER_BASE_CM+TOWER_GUARD_CM)*FLOOR/TOWER_SECTION_CM;
   // Fit the whole facade at every length, including 90 m at the maximum height.
-  const scale=mode==='tower'?Math.min(1,222/(count*FLOOR+(TOWER_BASE_CM+TOWER_GUARD_CM)*FLOOR/TOWER_SECTION_CM)):Math.min(1,420/((width+58)*.85+14),250/(count*FLOOR+41+(width+58)*.29));
+  const scale=mode==='tower'?Math.min(1.5,266/(towerTop+towerDepth+43)):Math.min(1,420/((width+58)*.85+14),250/(count*FLOOR+41+(width+58)*.29));
   const viewport=model.querySelector('.model-viewport');
   if(!viewport) return;
-  const base=mode==='tower'?BASE_Y:284-(width+58)*.145*scale;
+  const base=mode==='tower'?296-43*scale:284-(width+58)*.145*scale;
   const offsetX=mode==='tower'?0:width*.425*scale;
   const offsetY=mode==='tower'?0:width*.145*scale;
   viewport.style.transform=`translate(${240*(1-scale)-offsetX}px,${base-BASE_Y*scale-offsetY}px) scale(${scale})`;
@@ -228,7 +248,10 @@ function update() {
   savedHeight[mode]=height;
   $('#height-output').textContent=decimal.format(height);
   heightInput.setAttribute('aria-valuetext',mode==='tower'?`Общая высота ${decimal.format(height)} метра, настил ${decimal.format(platformHeight(height))} метра`:`${decimal.format(height)} метра`);
-  if(mode==='tower') $('#platform-output').textContent=decimal.format(platformHeight(height));
+  if(mode==='tower') {
+    $('#platform-output').textContent=decimal.format(platformHeight(height));
+    $('#selection-platform').textContent=`Площадка: ${towerPlatforms[towerPlatform].label}`;
+  }
   $('#length-output').textContent=decimal.format(length);
   lengthInput.setAttribute('aria-valuetext',`${decimal.format(length)} метров, ${pluralSections(length/3)} вдоль фасада`);
   rangeFill(heightInput);
@@ -245,7 +268,7 @@ function update() {
     $('#estimate-price').textContent='от 99 900 ₸';
     $('#estimate-note').textContent=`Цена базового варианта. Комплект на ${decimal.format(height)} м и доставку отдельно рассчитает менеджер.`;
   }
-  if(modelMode!==mode) makeModel();
+  if(modelMode!==mode||(mode==='tower'&&modelPlatform!==towerPlatform)) makeModel();
   else animateModel();
   $('#form-status').hidden=true;
 }
@@ -262,6 +285,9 @@ function setMode(value) {
   $('#height-label').textContent=isTower?'Общая высота вышки':'Высота лесов';
   heightInput.setAttribute('aria-describedby',isTower?'assembly-hint tower-dimensions':'assembly-hint');
   $('#tower-dimensions').hidden=!isTower;
+  $('#platform-picker').hidden=!isTower;
+  $('#platform-picker').disabled=!isTower;
+  $('#selection-platform').hidden=!isTower;
   $('#length-field').hidden=isTower;
   lengthInput.disabled=isTower;
   $('#model-name').textContent=isTower?'Вышка-тура':'Рамные леса';
@@ -272,6 +298,10 @@ function setMode(value) {
   update();
 }
 document.querySelectorAll('[name=equipment]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
+document.querySelectorAll('[name="platform-size"]').forEach(input=>input.addEventListener('change',()=>{
+  towerPlatform=input.value;
+  update();
+}));
 $('#height-down').addEventListener('click',()=>{heightInput.stepDown();update();});
 $('#height-up').addEventListener('click',()=>{heightInput.stepUp();update();});
 heightInput.addEventListener('input',update);
@@ -321,7 +351,7 @@ form.addEventListener('submit',(event)=> {
   const height=decimal.format(Number(heightInput.value));
   const lines=['Здравствуйте! Хочу получить расчёт оборудования.'];
   if(mode==='scaffold') lines.push('Оборудование: рамные строительные леса.',`Длина фасада: ${lengthInput.value} м.`,`Высота конструкции: ${height} м.`);
-  else lines.push('Оборудование: вышка-тура ВСП-250 «Евро».',`Общая высота по схеме: ${height} м.`,`Высота настила: ${decimal.format(platformHeight(Number(heightInput.value)))} м.`,`Секции по 1,2 м: ${sectionCount()}.`,'Колёсная база: 0,29 м. Верхнее ограждение: 1 м.');
+  else lines.push('Оборудование: вышка-тура ВСП-250 «Евро».',`Размер площадки: ${towerPlatforms[towerPlatform].label}.`,`Общая высота по схеме: ${height} м.`,`Высота настила: ${decimal.format(platformHeight(Number(heightInput.value)))} м.`,`Секции по 1,2 м: ${sectionCount()}.`,'Колёсная база: 0,29 м. Верхнее ограждение: 1 м.');
   lines.push(`Город доставки: ${city}.`,`Офис: ${officeInput.value}.`,'Помогите уточнить рабочую высоту, комплектацию, актуальную стоимость и доставку.');
   const recipient=officeNumbers[officeInput.value].find(({number})=>number===recipientInput.value);
   if(!recipient) return;

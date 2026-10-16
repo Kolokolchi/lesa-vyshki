@@ -16,8 +16,8 @@
   <link rel="preload" href="/assets/oswald-600.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/manrope-400.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/scaffolding-hero.webp" as="image" fetchpriority="high">
-  <link rel="stylesheet" href="/ui.css?v=3">
-  <script src="/app.js?v=3" defer></script>
+  <link rel="stylesheet" href="/ui.css?v=4">
+  <script src="/app.js?v=4" defer></script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Store","name":"Леса-вышки","url":"https://lesa-vyshki.kz/","telephone":"+77017050000","email":"lesa-vyshki@mail.ru","address":{"@type":"PostalAddress","streetAddress":"шоссе Алаш, 18/2а","addressLocality":"Астана","postalCode":"010000","addressCountry":"KZ"},"areaServed":{"@type":"Country","name":"Казахстан"}}</script>
 </head>
 <body>
@@ -100,6 +100,14 @@
               <label><input form="estimate-form" type="radio" name="equipment" value="scaffold"><span><svg class="icon"><use href="#i-frame"/></svg>Строительные леса</span></label>
               <label><input form="estimate-form" type="radio" name="equipment" value="tower" checked><span><svg class="icon"><use href="#i-box"/></svg>Вышка-тура</span></label>
             </fieldset>
+            <fieldset class="platform-picker" id="platform-picker">
+              <legend>Размер площадки</legend>
+              <div class="platform-options">
+                <label><input form="estimate-form" type="radio" name="platform-size" value="0.8x1.7"><span><svg viewBox="0 0 44 32" aria-hidden="true"><rect x="5" y="8" width="34" height="16" rx="1"/></svg><span>0,8 × 1,7 м</span></span></label>
+                <label><input form="estimate-form" type="radio" name="platform-size" value="1.2x2" checked><span><svg viewBox="0 0 44 32" aria-hidden="true"><rect x="2" y="4" width="40" height="24" rx="1"/></svg><span>1,2 × 2 м</span></span></label>
+                <label><input form="estimate-form" type="radio" name="platform-size" value="2x2"><span><svg viewBox="0 0 44 32" aria-hidden="true"><rect x="8" y="2" width="28" height="28" rx="1"/></svg><span>2 × 2 м</span></span></label>
+              </div>
+            </fieldset>
             <div class="assembly-panel-head"><span id="model-name">Вышка-тура</span><span id="model-sections">1 секция</span></div>
             <div class="blueprint" aria-hidden="true"><svg id="blueprint" viewBox="0 0 480 310" fill="none"></svg></div>
             <div class="assembly-slider">
@@ -125,6 +133,7 @@
                 <span id="selection-caption">Ваше оборудование</span>
                 <h3 id="selection-model">ВСП-250 «Евро»</h3>
                 <p id="selection-description">Для монтажа, обслуживания и локальной отделки.</p>
+                <p class="selection-platform" id="selection-platform">Площадка: 1,2 × 2 м</p>
                 <div class="selection-feature"><svg class="icon"><use href="#i-check"/></svg><span id="selection-feature">Секция — 1,2 м · База — 0,29 м · Ограждение — 1 м</span></div>
               </div>
               <div class="city-field"><label for="city">Город доставки</label><select id="city" name="city"><option>Астана</option><option>Алматы</option><option>Караганда</option><option>Шымкент</option><option>Актобе</option><option>Атырау</option><option>Костанай</option><option>Павлодар</option><option>Усть-Каменогорск</option><option value="other">Другой город</option></select></div>
@@ -159,7 +168,13 @@
   </main>
 
   <footer class="footer"><div class="wrap footer-inner"><a class="brand footer-brand" href="#top" aria-label="Леса-вышки — вверх"><svg class="brand-mark"><use href="#brand-mark"/></svg><span class="brand-type">ЛЕСА<span class="brand-hyphen">–</span>ВЫШКИ</span></a><p>© <span id="year">2026</span> Леса-вышки.<br>Строительное оборудование в Казахстане.</p><a class="back-top" href="#top">Наверх <span aria-hidden="true">↑</span></a></div><div class="wrap footer-fineprint"><p>Характеристики зависят от выбранной модели и комплектации. Монтаж и эксплуатация — по паспорту производителя.</p><p>Изображение на первом экране — архитектурная визуализация.</p></div></footer>
-  <a class="floating-contact" href="https://wa.me/77017050000" target="_blank" rel="noopener" aria-label="Написать в WhatsApp"><svg class="icon"><use href="#i-wa"/></svg><span>На связи</span></a>
+  <button class="floating-contact" type="button" popovertarget="quick-contacts" aria-label="Выбрать город и номер WhatsApp"><svg class="icon"><use href="#i-wa"/></svg></button>
+  <div class="quick-contacts" id="quick-contacts" popover aria-labelledby="quick-contacts-title">
+    <div class="quick-contacts-heading"><h2 id="quick-contacts-title">Напишите нам</h2><button type="button" popovertarget="quick-contacts" popovertargetaction="hide" aria-label="Закрыть выбор контактов">×</button></div>
+    <p>Выберите город и номер WhatsApp</p>
+    <section aria-labelledby="quick-astana"><h3 id="quick-astana">Астана</h3><a href="https://wa.me/77017050000" target="_blank" rel="noopener" aria-label="WhatsApp, Астана: +7 701 705 00 00"><span>+7 701 705 00 00</span><svg class="icon"><use href="#i-wa"/></svg></a></section>
+    <section aria-labelledby="quick-almaty"><h3 id="quick-almaty">Алматы</h3><a href="https://wa.me/77781735353" target="_blank" rel="noopener" aria-label="WhatsApp, Алматы: +7 778 173 53 53"><span>+7 778 173 53 53</span><svg class="icon"><use href="#i-wa"/></svg></a><a href="https://wa.me/77770582285" target="_blank" rel="noopener" aria-label="WhatsApp, Алматы: +7 777 058 22 85"><span>+7 777 058 22 85</span><svg class="icon"><use href="#i-wa"/></svg></a></section>
+  </div>
 </body>
 </html>
 
